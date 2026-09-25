@@ -6,3 +6,4 @@
 /data_split
 /student_resource
 /venv
+*cache*
