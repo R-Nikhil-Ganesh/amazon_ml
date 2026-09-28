@@ -27,6 +27,13 @@ TEST_SOURCE1_PATH = os.path.join(DATA_DIR_TEST, "test_source1.csv")
 TEST_SOURCE2_PATH = os.path.join(DATA_DIR_TEST, "test_source2.csv")
 TEST_SOURCE3_PATH = os.path.join(DATA_DIR_TEST, "test_source3.csv")
 
+# DuckDB blocking index built over the FULL training S2/S3 pool, used by
+# DuckDBBlockingEngine - shared by
+# validate_pipeline.py and train_screener.py/train_tf_specialist.py so both
+# ends of training (candidate retrieval for model training, and validating
+# the trained model) see the same index.
+TRAIN_CANDIDATE_INDEX_DUCKDB_PATH = os.path.join(SPLIT_DIR, "train_candidates_index.duckdb")
+
 # Submission Paths (TSV format required by challenge)
 SUBMISSION_MATCHING_PATH = os.path.join(OUTPUT_DIR, "matching_results.tsv")
 SUBMISSION_CANDIDATE_PATH = os.path.join(OUTPUT_DIR, "candidate_pairs.tsv")
@@ -38,8 +45,16 @@ VAL_S1_IDS_PATH = os.path.join(SPLIT_DIR, "val_s1_ids.txt")
 MINI_VAL_S1_IDS_PATH = os.path.join(SPLIT_DIR, "mini_val_s1_ids.txt")
 
 # Blocking Hyperparameters
-MAX_CANDIDATES_PER_S1 = 25
+MAX_CANDIDATES_PER_S1 = 35
 MAX_TOKEN_POSTINGS = 150  # Cap on posting list length to ignore super-frequent tokens
+
+# retrieve_candidates() pulls the full key-matched pool, then reranks the top
+# RERANK_POOL_SIZE of it by text similarity (not just summed key weight)
+# before truncating to MAX_CANDIDATES_PER_S1 - see build_blocking_keys() /
+# retrieve_candidates() in sqlite_blocking.py. 300 covers the p99 pool size
+# (249) measured on the real train index while keeping the rapidfuzz cost
+# per S1 entity small.
+RERANK_POOL_SIZE = 300
 
 # Common Stopwords / Frequency Filters (Multilingual)
 STOPWORDS = {
@@ -75,9 +90,4 @@ LGBM_PARAMS = {
 # Cascaded Routing Probability Thresholds
 THRESHOLD_AUTO_ACCEPT = 0.88   # Highly confident matches
 THRESHOLD_AUTO_REJECT = 0.15   # Highly confident non-matches
-# Ambiguous zone: 0.15 <= P <= 0.88 routed to 3B LLM
-
-# 3B Model Specification
-BASE_MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
-LORA_R = 16
-LORA_ALPHA = 32
+# Ambiguous zone routed to the Stage 3 TensorFlow specialist - see pipeline.py.

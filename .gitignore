@@ -6,5 +6,9 @@
 /data_split
 /student_resource
 /venv
+/pytorch
 *cache*
 *keras
+*tsv
+*db
+*log
