@@ -6,10 +6,18 @@ Configured to use CSV datasets while generating compliant TSV competition submis
 
 import os
 
+def delimiter_for(path: str) -> str:
+    """Field delimiter by extension: the competition's .tsv files are tab-separated,
+    the derived .csv files (split/hard-negative caches) are comma-separated."""
+    return "\t" if str(path).lower().endswith(".tsv") else ","
+
+
 # Base Directories
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-DATA_DIR_TRAIN = os.path.join(PROJECT_ROOT, "csv_data/train")
-DATA_DIR_TEST = os.path.join(PROJECT_ROOT, "csv_data/test")
+# Defaults to the submission root (three levels above src/); set ER_PROJECT_ROOT to run
+# from elsewhere. Expects <root>/student_resource/dataset/{train,test}/*.tsv.
+PROJECT_ROOT = os.path.abspath(os.environ.get("ER_PROJECT_ROOT") or os.path.join(os.path.dirname(__file__), "../../.."))
+DATA_DIR_TRAIN = os.path.join(PROJECT_ROOT, "student_resource/dataset/train")
+DATA_DIR_TEST = os.path.join(PROJECT_ROOT, "student_resource/dataset/test")
 SPLIT_DIR = os.path.join(PROJECT_ROOT, "data_split")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output")
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
@@ -18,14 +26,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 # Dataset Paths (CSV files)
-TRAIN_SOURCE1_PATH = os.path.join(DATA_DIR_TRAIN, "source1.csv")
-TRAIN_SOURCE2_PATH = os.path.join(DATA_DIR_TRAIN, "source2.csv")
-TRAIN_SOURCE3_PATH = os.path.join(DATA_DIR_TRAIN, "source3.csv")
-TRAIN_GROUND_TRUTH_PATH = os.path.join(DATA_DIR_TRAIN, "ground_truth.csv")
+TRAIN_SOURCE1_PATH = os.path.join(DATA_DIR_TRAIN, "train_source1.tsv")
+TRAIN_SOURCE2_PATH = os.path.join(DATA_DIR_TRAIN, "train_source2.tsv")
+TRAIN_SOURCE3_PATH = os.path.join(DATA_DIR_TRAIN, "train_source3.tsv")
+TRAIN_GROUND_TRUTH_PATH = os.path.join(DATA_DIR_TRAIN, "train_ground_truth.tsv")
 
-TEST_SOURCE1_PATH = os.path.join(DATA_DIR_TEST, "test_source1.csv")
-TEST_SOURCE2_PATH = os.path.join(DATA_DIR_TEST, "test_source2.csv")
-TEST_SOURCE3_PATH = os.path.join(DATA_DIR_TEST, "test_source3.csv")
+TEST_SOURCE1_PATH = os.path.join(DATA_DIR_TEST, "test_source1.tsv")
+TEST_SOURCE2_PATH = os.path.join(DATA_DIR_TEST, "test_source2.tsv")
+TEST_SOURCE3_PATH = os.path.join(DATA_DIR_TEST, "test_source3.tsv")
 
 # DuckDB blocking index built over the FULL training S2/S3 pool, used by
 # DuckDBBlockingEngine - shared by
@@ -39,8 +47,8 @@ SUBMISSION_MATCHING_PATH = os.path.join(OUTPUT_DIR, "matching_results.tsv")
 SUBMISSION_CANDIDATE_PATH = os.path.join(OUTPUT_DIR, "candidate_pairs.tsv")
 
 # Validation Split Paths
-VAL_GROUND_TRUTH_PATH = os.path.join(SPLIT_DIR, "val_ground_truth.csv")
-MINI_VAL_GROUND_TRUTH_PATH = os.path.join(SPLIT_DIR, "mini_val_ground_truth.csv")
+VAL_GROUND_TRUTH_PATH = os.path.join(SPLIT_DIR, "val_ground_truth.tsv")
+MINI_VAL_GROUND_TRUTH_PATH = os.path.join(SPLIT_DIR, "mini_val_ground_truth.tsv")
 VAL_S1_IDS_PATH = os.path.join(SPLIT_DIR, "val_s1_ids.txt")
 MINI_VAL_S1_IDS_PATH = os.path.join(SPLIT_DIR, "mini_val_s1_ids.txt")
 

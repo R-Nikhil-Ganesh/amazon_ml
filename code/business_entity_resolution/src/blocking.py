@@ -20,6 +20,7 @@ import sys
 from typing import Dict, List, Set, Tuple
 
 from .config import (
+    delimiter_for,
     TRAIN_SOURCE1_PATH,
     TRAIN_SOURCE2_PATH,
     TRAIN_SOURCE3_PATH,
@@ -48,7 +49,7 @@ def read_entity_csv(filepath: str, allowed_ids: Set[str] = None) -> List[Dict[st
     """Stream and parse entity CSV into list of records."""
     records = []
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, delimiter=delimiter_for(filepath))
         header = next(reader)
         
         col_map = {}
@@ -224,7 +225,7 @@ def evaluate_blocking_recall(
     total_candidates_generated = 0
 
     with open(ground_truth_path, "r", encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, delimiter=delimiter_for(ground_truth_path))
         header = next(reader)
         s1_idx = 1 if len(header) > 2 and header[1] == "source1_entity_id" else 0
         if "source1_entity_id" in header:

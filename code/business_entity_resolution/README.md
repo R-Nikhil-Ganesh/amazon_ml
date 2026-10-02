@@ -3,10 +3,7 @@
 High-performance, 3-stage cascaded hybrid Entity Resolution pipeline for Amazon ML Challenge 2026.
 Blocking is DuckDB-based (batched, vectorized joins), scoring is a LightGBM +
 TensorFlow cascade, and decoding is per-entity expected-F0.5 optimization
-rather than a single global threshold. See
-[`../../documents/architecture.md`](../../documents/architecture.md) for the
-full breakdown and [`../../documents/engineering_log.md`](../../documents/engineering_log.md)
-for why each piece is built the way it is.
+rather than a single global threshold. 
 
 ## System Architecture
 
@@ -78,94 +75,93 @@ for why each piece is built the way it is.
 ## Directory Structure
 
 ```
-business_entity_resolution/
-├── README.md                  # This reproduction guide
-├── requirements.txt           # Python dependencies
-└── src/
-    ├── __init__.py            # Package exports and metadata
-    ├── config.py               # Global paths, thresholds, and hyper-parameters
-    ├── normalize.py             # Multilingual text, address, and numeric cleaners
-    ├── transliterate.py         # Indic-script transliteration (dictionary + rule-based fallback)
-    ├── blocking.py               # Shared entity-CSV reading & recall evaluator
-    ├── duckdb_blocking.py         # DuckDB blocking engine: index build & batched retrieval
-    ├── features.py                 # Pairwise feature extraction
-    ├── evaluate.py                  # Competition Macro F_0.5 metric evaluation
-    ├── decode.py                     # Per-entity expected-F0.5 decoding
-    ├── dedupe_matches.py              # Global one-S1-per-candidate resolution
-    ├── split_data.py                   # Disjoint S1 entity-level train/validation splitter
-    ├── train_screener.py                # Stage 2 LightGBM training & hard negative mining
-    ├── train_tf_specialist.py            # Stage 3 TensorFlow ResNet-MLP training
-    ├── tune_screener.py                   # Random-search LightGBM hyperparameter tuning
-    ├── pipeline_duckdb.py                  # Full cascaded test inference pipeline (recommended)
-    ├── validate_pipeline.py                 # Validation harness: real pipeline vs. held-out split
-    ├── eval_blocking_recall.py               # Standalone blocking-recall diagnostic
-    └── test_blocking.py                       # Unit tests for blocking and recall evaluation
+<submission root>/
+├── output/                     # matching_results.tsv, candidate_pairs.tsv (final submission files)
+├── models/                     # trained screener_lgbm.pkl + tf_specialist_model.keras
+├── student_resource/dataset/   # NOT in the zip - the provided competition data goes here
+│   ├── train/  train_source{1,2,3}.tsv, train_ground_truth.tsv
+│   └── test/   test_source{1,2,3}.tsv
+└── code/business_entity_resolution/
+    ├── README.md
+    ├── requirements.txt
+    └── src/
+        ├── config.py              # Paths, thresholds, hyper-parameters
+        ├── normalize.py           # Multilingual text, address, numeric cleaners
+        ├── transliterate.py       # Indic-script transliteration (learned dictionary + rule-based fallback)
+        ├── blocking.py            # Entity file reader & recall evaluator
+        ├── sqlite_blocking.py     # Blocking-key generation shared by the DuckDB engine
+        ├── duckdb_blocking.py     # DuckDB blocking engine: index build & batched retrieval
+        ├── features.py            # Pairwise feature extraction
+        ├── evaluate.py            # Macro F_0.5 metric
+        ├── decode.py              # Per-entity expected-F0.5 decoding
+        ├── dedupe_matches.py      # Global one-S1-per-candidate resolution
+        ├── split_data.py          # Disjoint S1 train/validation split
+        ├── train_screener.py      # Stage 2 LightGBM training & hard-negative mining
+        ├── train_tf_specialist.py # Stage 3 TensorFlow ResNet-MLP training
+        └── pipeline_duckdb.py     # Full cascaded test inference pipeline
 ```
 
-`pipeline.py` and `sqlite_blocking.py` (the original single-process
-SQLite-backed implementation this package started from) are still present
-in `src/` but superseded — see
-[`../../documents/engineering_log.md`](../../documents/engineering_log.md)
-for that history if you need it.
+The input data is read directly from the original `.tsv` files; no conversion
+is needed. The code expects the layout above, i.e. this folder placed at
+`<root>/code/business_entity_resolution/`. To run from another location, set
+`ER_PROJECT_ROOT=<root>`.
 
 ---
 
 ## Installation
 
-Ensure Python 3.10+ is available:
+Python 3.10 (tested with 3.10.12):
 
 ```bash
-pip install -r requirements.txt
+pip install -r code/business_entity_resolution/requirements.txt
 ```
 
 ---
 
 ## Reproduction Guide
 
-All commands should be executed from the project root directory with `PYTHONPATH=code/business_entity_resolution`.
+Run every command from `<root>` with `PYTHONPATH=code/business_entity_resolution`.
+Steps 1-4 are only needed to retrain; the trained models are already in
+`models/`, so step 5 alone regenerates the submission files.
 
-### 1. Run Unit Tests
 ```bash
-PYTHONPATH=code/business_entity_resolution python3 -m unittest src.test_blocking
+export PYTHONPATH=code/business_entity_resolution
 ```
 
-### 2. Prepare Train/Val Split (Optional if already generated)
+### 1. Train/validation split
 ```bash
-PYTHONPATH=code/business_entity_resolution python3 -m src.split_data
+python3 -m src.split_data          # writes data_split/{val,mini_val}_s1_ids.txt and *_ground_truth.tsv
 ```
 
-### 3. Train LightGBM Screener & Mine Hard Negatives
+### 2. Build the Indic-script transliteration dictionary
 ```bash
-PYTHONPATH=code/business_entity_resolution python3 -m src.train_screener
+python3 -m src.transliterate       # writes data_split/translit_dict.json
 ```
 
-### 4. Train TensorFlow Specialist
+### 3. Train the LightGBM screener & mine hard negatives
 ```bash
-PYTHONPATH=code/business_entity_resolution python3 -m src.train_tf_specialist
+python3 -m src.train_screener      # writes models/screener_lgbm.pkl, data_split/active_hard_negatives.csv
+```
+The first run builds a disk-backed DuckDB candidate index over the full
+training S2/S3 pool (~6 GB, `data_split/train_candidates_index.duckdb`).
+
+### 4. Train the TensorFlow specialist
+```bash
+python3 -m src.train_tf_specialist # writes models/tf_specialist_model.keras
 ```
 
-### 5. (Optional) Tune LightGBM Hyperparameters
+### 5. Full test inference
 ```bash
-PYTHONPATH=code/business_entity_resolution python3 -m src.tune_screener --trials 15
+python3 -u -m src.pipeline_duckdb --threshold 0.75 --rebuild-index
 ```
+Builds the test candidate index (`output/candidates_index.duckdb`, ~6 GB), then
+runs blocking, the LightGBM/TensorFlow cascade, per-entity decoding and global
+duplicate resolution, writing `output/matching_results.tsv` and
+`output/candidate_pairs.tsv`. `output/match_scores.tsv` holds the per-pair
+probabilities used for decoding and dedupe ownership. Use `--max-entities N`
+for a quick smoke test.
 
-### 6. Validate Before a Full Run
-```bash
-PYTHONPATH=code/business_entity_resolution python3 -m src.validate_pipeline --mini
-```
-
-### 7. Run Full Test Inference
-```bash
-./run_full_inference_duckdb.sh
-# or directly:
-PYTHONPATH=code/business_entity_resolution python3 -u -m src.pipeline_duckdb --rebuild-index
-```
-This also runs Stage 5 (`dedupe_matches.py`) and Stage 4 decoding
-automatically at the end, writing the final `output/matching_results.tsv`
-and `output/candidate_pairs.tsv`. `output/match_scores.tsv` holds the
-per-pair probabilities used for decoding and dedupe ownership.
-
-### 8. Validate & Package Submission Archive
+### 6. Validate & package
 ```bash
 ./package_submission.sh
 ```

@@ -37,6 +37,7 @@ from .config import (
     TRAIN_SOURCE2_PATH,
     TRAIN_SOURCE3_PATH,
     SPLIT_DIR,
+    delimiter_for,
 )
 from .normalize import _is_brahmic_char, transliterate_brahmic_token
 
@@ -49,10 +50,10 @@ def _has_brahmic(text: str) -> bool:
 
 def _read_entity_csv(path: str, id_col_hint: str = "entity_id"):
     """Yield (entity_id, business_name, business_address, country) from a
-    csv_data-style S1/S2/S3 file (leading unnamed index column, quoted
-    commas in address)."""
+    S1/S2/S3 file (.tsv, or legacy .csv with a leading unnamed index
+    column)."""
     with open(path, "r", encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, delimiter=delimiter_for(path))
         header = next(reader)
         id_idx = 1 if len(header) > 2 and header[1] == id_col_hint else 0
         name_idx, addr_idx, cntry_idx = id_idx + 1, id_idx + 2, id_idx + 3

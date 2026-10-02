@@ -28,7 +28,7 @@ import duckdb
 import pandas as pd
 from rapidfuzz import fuzz
 
-from .config import MAX_CANDIDATES_PER_S1, MAX_TOKEN_POSTINGS, RERANK_POOL_SIZE
+from .config import MAX_CANDIDATES_PER_S1, MAX_TOKEN_POSTINGS, RERANK_POOL_SIZE, delimiter_for
 from .normalize import normalize_business_name, normalize_address, extract_numbers
 from .sqlite_blocking import (
     build_blocking_keys,
@@ -117,7 +117,7 @@ class DuckDBBlockingEngine:
             t0 = time.time()
             count = 0
             with open(path, "r", encoding="utf-8", errors="replace") as f:
-                reader = csv.reader(f)
+                reader = csv.reader(f, delimiter=delimiter_for(path))
                 header = next(reader)
                 id_idx = 1 if len(header) > 2 and header[1] == "entity_id" else 0
                 name_idx = id_idx + 1

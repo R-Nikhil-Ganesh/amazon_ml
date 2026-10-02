@@ -41,6 +41,7 @@ except ImportError:
     HAS_TF = False
 
 from .config import (
+    delimiter_for,
     TEST_SOURCE1_PATH,
     TEST_SOURCE2_PATH,
     TEST_SOURCE3_PATH,
@@ -62,7 +63,7 @@ def stream_s1_records(s1_path: str, chunk_size: int = 10000):
     """Yield chunks of S1 records."""
     chunk = []
     with open(s1_path, "r", encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, delimiter=delimiter_for(s1_path))
         header = next(reader)
         id_idx = 1 if len(header) > 2 and header[1] == "entity_id" else 0
         name_idx = id_idx + 1

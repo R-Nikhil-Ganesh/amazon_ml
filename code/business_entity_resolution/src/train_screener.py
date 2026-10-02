@@ -20,6 +20,7 @@ import lightgbm as lgb
 import numpy as np
 
 from .config import (
+    delimiter_for,
     TRAIN_SOURCE1_PATH,
     TRAIN_SOURCE2_PATH,
     TRAIN_SOURCE3_PATH,
@@ -163,7 +164,7 @@ def train_screener(
 
     train_ids = set()
     with open(TRAIN_GROUND_TRUTH_PATH, "r", encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
+        reader = csv.reader(f, delimiter=delimiter_for(TRAIN_GROUND_TRUTH_PATH))
         header = next(reader)
         s1_col = 1 if len(header) > 2 and header[1] == "source1_entity_id" else 0
         if "source1_entity_id" in header:
